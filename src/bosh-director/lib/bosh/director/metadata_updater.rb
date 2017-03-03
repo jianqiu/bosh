@@ -25,6 +25,19 @@ module Bosh::Director
       @logger.debug(e.inspect)
     end
 
+    def update_disk_metadata(disk, metadata)
+      cloud = cloud_factory.for_availability_zone!(disk.instance.availability_zone)
+
+
+      if cloud.respond_to?(:set_disk_metadata)
+        metadata['attached_at'] = Time.new.getutc.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+        cloud.set_disk_metadata(disk.disk_cid, metadata)
+      end
+    rescue Bosh::Clouds::NotImplemented => e
+       @logger.debug(e.inspect)
+    end
+
     def deployment_metadata(instance)
       metadata = {}.merge(@director_metadata)
       metadata['deployment'] = instance.deployment.name
