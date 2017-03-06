@@ -8,35 +8,39 @@ check_param RUBY_VERSION
 echo "Starting $DB..."
 case "$DB" in
   mysql)
-    mv /var/lib/mysql /var/lib/mysql-src
-    mkdir /var/lib/mysql
-    mount -t tmpfs -o size=256M tmpfs /var/lib/mysql
-    mv /var/lib/mysql-src/* /var/lib/mysql/
+    if [ "$DB_VERSION" != "rds" ]; then
+      mv /var/lib/mysql /var/lib/mysql-src
+      mkdir /var/lib/mysql
+      mount -t tmpfs -o size=256M tmpfs /var/lib/mysql
+      mv /var/lib/mysql-src/* /var/lib/mysql/
 
-    sudo service mysql start
+      sudo service mysql start
+    fi
     ;;
   postgresql)
-    mkdir /tmp/postgres
-    mount -t tmpfs -o size=512M tmpfs /tmp/postgres
-    mkdir /tmp/postgres/data
-    chown postgres:postgres /tmp/postgres/data
+    if [ "$DB_VERSION" != "rds" ]; then
+      mkdir /tmp/postgres
+      mount -t tmpfs -o size=512M tmpfs /tmp/postgres
+      mkdir /tmp/postgres/data
+      chown postgres:postgres /tmp/postgres/data
 
-    su postgres -c '
-      export PATH=/usr/lib/postgresql/$DB_VERSION/bin:$PATH
-      export PGDATA=/tmp/postgres/data
-      export PGLOGS=/tmp/log/postgres
-      mkdir -p $PGDATA
-      mkdir -p $PGLOGS
-      initdb -U postgres -D $PGDATA
+      su postgres -c '
+        export PATH=/usr/lib/postgresql/$DB_VERSION/bin:$PATH
+        export PGDATA=/tmp/postgres/data
+        export PGLOGS=/tmp/log/postgres
+        mkdir -p $PGDATA
+        mkdir -p $PGLOGS
+        initdb -U postgres -D $PGDATA
 
-      if ([ $DB_VERSION == "9.5" ] || [ $DB_VERSION == "9.6" ]); then
-          echo "checkpoint_timeout=1h" >> $PGDATA/postgresql.conf
-          echo "min_wal_size=300MB" >> $PGDATA/postgresql.conf
-          echo "max_wal_size=300MB" >> $PGDATA/postgresql.conf
-      fi
+        if ([ $DB_VERSION == "9.5" ] || [ $DB_VERSION == "9.6" ]); then
+            echo "checkpoint_timeout=1h" >> $PGDATA/postgresql.conf
+            echo "min_wal_size=300MB" >> $PGDATA/postgresql.conf
+            echo "max_wal_size=300MB" >> $PGDATA/postgresql.conf
+        fi
 
-      pg_ctl start -w -l $PGLOGS/server.log -o "-N 400"
-    '
+        pg_ctl start -w -l $PGLOGS/server.log -o "-N 400"
+      '
+    fi
     ;;
   sqlite)
     echo "Using sqlite"
@@ -57,6 +61,6 @@ export GOPATH=$(pwd)/go
 bundle install --local
 bundle exec rake --trace spec:unit
 
-if [ "$DB" = "mysql" ]; then
+if [ "$DB" = "mysql" ] && [ "$DB_VERSION" != "rds" ]; then
   sudo service mysql stop
 fi
