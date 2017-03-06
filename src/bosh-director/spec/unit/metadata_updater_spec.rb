@@ -105,4 +105,64 @@ describe Bosh::Director::MetadataUpdater do
       expect(metadata).to include({'index' => '12345'})
     end
   end
+
+  describe '#update_disk_metadata' do
+    let(:disk) { BD::Models::PersistentDisk.make(instance_id: 'fake-vm-cid', disk_cid: 'fake-disk-cid')}
+    let(:instance) {
+      instance = BD::Models::Instance.make(deployment: deployment, vm_cid: 'fake-vm-cid', uuid: 'some_instance_id', job: 'job-value', index: 12345, availability_zone: 'az1')
+      instance.add_persistent_disk(disk) if disk
+      instance
+    }
+
+    before do
+      allow(Bosh::Director::CloudFactory).to receive(:new).and_return(cloud_factory)
+      expect(cloud_factory).to receive(:for_availability_zone!).with(instance.availability_zone).and_return(cloud)
+    end
+
+    context 'when CPI supports setting disk metadata' do
+      it 'adds the deployment metadata' do
+        expected_disk_metadata = {
+          'id' => 'some_instance_id',
+          'job' => 'job-value',
+          'index' => '12345',
+          'name' => 'job-value/some_instance_id',
+        }
+        expect(cloud).to receive(:set_disk_metadata).with('fake-disk-cid', hash_including(expected_disk_metadata))
+        allow(metadata_updater).to receive(:deployment_metadata).and_call_original
+        metadata_updater.update_disk_metadata(disk, {})
+        expect(metadata_updater).to have_received(:deployment_metadata).with(disk.instance)
+      end
+
+      it 'updates disk metadata with provided metadata' do
+        expected_disk_metadata = {'fake-custom-key1' => 'fake-custom-value1'}
+        expect(cloud).to receive(:set_disk_metadata).with('fake-disk-cid', hash_including(expected_disk_metadata))
+        metadata_updater.update_disk_metadata(disk, expected_disk_metadata)
+      end
+
+      it 'updates disk metadata with attachment time' do
+        Timecop.freeze do
+          expected_disk_metadata = {'attached_at' => Time.new.getutc.strftime('%Y-%m-%dT%H:%M:%SZ')}
+          expect(cloud).to receive(:set_disk_metadata).with('fake-disk-cid', hash_including(expected_disk_metadata))
+          metadata_updater.update_disk_metadata(disk, {})
+        end
+      end
+    end
+
+    context 'when set_disk_metadata is not part of CPI' do
+      before { allow(cloud).to receive(:respond_to?).with(:set_disk_metadata).and_return(false) }
+
+      it 'does not set disk metadata' do
+        expect(cloud).not_to receive(:set_disk_metadata)
+        metadata_updater.update_disk_metadata(disk, {})
+      end
+    end
+
+    context 'when set_disk_metadata raises not implemented error' do
+      before { allow(cloud).to receive(:set_disk_metadata).and_raise(Bosh::Clouds::NotImplemented) }
+
+      it 'does not propagate raised error' do
+        expect { metadata_updater.update_disk_metadata(disk, {}) }.to_not raise_error
+      end
+    end
+  end
 end
