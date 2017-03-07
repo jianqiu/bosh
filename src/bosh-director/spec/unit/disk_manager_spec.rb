@@ -56,6 +56,10 @@ module Bosh::Director
     end
 
     describe '#attach_disk' do
+      before do
+        allow(cloud_factory).to receive(:for_availability_zone!)
+      end
+
       context 'managed disks' do
         it 'attaches + mounts disk' do
           expect(cloud_factory).to receive(:for_availability_zone).with(instance_model.availability_zone).once.and_return(cloud_collection)
@@ -74,6 +78,13 @@ module Bosh::Director
           expect(agent_client).to_not receive(:mount_disk)
           disk_manager.attach_disk(persistent_disk)
         end
+      end
+
+      it 'sets disk metadata with deployment information' do
+        allow(cloud_factory).to receive(:for_availability_zone).and_return(cloud)
+        allow(cloud).to receive(:attach_disk)
+        expect_any_instance_of(Bosh::Director::MetadataUpdater).to receive(:update_disk_metadata).with(persistent_disk, persistent_disk.instance.deployment.tags)
+        disk_manager.attach_disk(persistent_disk)
       end
     end
 
@@ -489,6 +500,10 @@ module Bosh::Director
 
     describe '#attach_disks_if_needed' do
       context 'when instance desired job has disk' do
+        before do
+          allow(cloud_factory).to receive(:for_availability_zone!)
+        end
+
         let(:job_persistent_disk_size) { 100 }
 
         it 'attaches current instance disk' do

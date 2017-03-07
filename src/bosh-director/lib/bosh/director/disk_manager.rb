@@ -89,6 +89,7 @@ module Bosh::Director
     def attach_disk(disk)
       cloud = cloud_factory.for_availability_zone(disk.instance.availability_zone)
       cloud.attach_disk(disk.instance.vm_cid, disk.disk_cid)
+      MetadataUpdater.build.update_disk_metadata(disk, disk.instance.deployment.tags)
       mount_disk(disk) if disk.managed?
     end
 
