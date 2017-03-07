@@ -15,8 +15,12 @@ module Bosh::Director
       cloud = cloud_factory.for_availability_zone!(instance.availability_zone)
 
       if cloud.respond_to?(:set_vm_metadata)
-        metadata = metadata.merge(deployment_metadata(instance))
-
+        metadata = metadata.merge(@director_metadata)
+        metadata['deployment'] = instance.deployment.name
+        metadata['id'] = instance.uuid
+        metadata['job'] = instance.job
+        metadata['index'] = instance.index.to_s
+        metadata['name'] = "#{instance.job}/#{instance.uuid}"
         metadata['created_at'] = Time.new.getutc.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         cloud.set_vm_metadata(instance.vm_cid, metadata)
@@ -29,24 +33,18 @@ module Bosh::Director
       cloud = cloud_factory.for_availability_zone!(disk.instance.availability_zone)
 
       if cloud.respond_to?(:set_disk_metadata)
-        metadata = metadata.merge(deployment_metadata(disk.instance))
+        metadata = metadata.merge(@director_metadata)
+        metadata['deployment'] = disk.instance.deployment.name
+        metadata['instance_id'] = disk.instance.uuid
+        metadata['job'] = disk.instance.job
+        metadata['instance_index'] = disk.instance.index.to_s
+        metadata['instance_name'] = "#{disk.instance.job}/#{disk.instance.uuid}"
         metadata['attached_at'] = Time.new.getutc.strftime('%Y-%m-%dT%H:%M:%SZ')
 
         cloud.set_disk_metadata(disk.disk_cid, metadata)
       end
     rescue Bosh::Clouds::NotImplemented => e
        @logger.debug(e.inspect)
-    end
-
-    def deployment_metadata(instance)
-      metadata = {}.merge(@director_metadata)
-      metadata['deployment'] = instance.deployment.name
-
-      metadata['id'] = instance.uuid
-      metadata['job'] = instance.job
-      metadata['index'] = instance.index.to_s
-      metadata['name'] = "#{instance.job}/#{instance.uuid}"
-      metadata
     end
   end
 end
