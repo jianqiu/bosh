@@ -12,7 +12,9 @@ module Bosh::Director
         desired_instance: DeploymentPlan::DesiredInstance.new(job),
         instance: instance,
         network_plans: [],
+        tags: tags,
       }) }
+    let(:tags) {{'tags' => {'mytag' => 'myvalue'}}}
 
     let(:job_persistent_disk_size) { 1024 }
     let(:job) do
@@ -56,35 +58,31 @@ module Bosh::Director
     end
 
     describe '#attach_disk' do
-      before do
-        allow(cloud_factory).to receive(:for_availability_zone!)
-      end
-
       context 'managed disks' do
         it 'attaches + mounts disk' do
-          expect(cloud_factory).to receive(:for_availability_zone).with(instance_model.availability_zone).once.and_return(cloud_collection)
+          expect(cloud_factory).to receive(:for_availability_zone).with(instance_model.availability_zone).twice.and_return(cloud_collection)
           expect(cloud_collection).to receive(:attach_disk).with('vm234', 'disk123')
           expect(agent_client).to receive(:wait_until_ready)
           expect(agent_client).to receive(:mount_disk).with('disk123')
-          disk_manager.attach_disk(persistent_disk)
+          disk_manager.attach_disk(persistent_disk, {})
         end
       end
 
       context 'unmanaged disks' do
         it 'attaches the disk without mounting' do
           persistent_disk.update(name: 'chewbacca')
-          expect(cloud_factory).to receive(:for_availability_zone).with(instance_model.availability_zone).once.and_return(cloud_collection)
+          expect(cloud_factory).to receive(:for_availability_zone).with(instance_model.availability_zone).twice.and_return(cloud_collection)
           expect(cloud_collection).to receive(:attach_disk).with('vm234', 'disk123')
           expect(agent_client).to_not receive(:mount_disk)
-          disk_manager.attach_disk(persistent_disk)
+          disk_manager.attach_disk(persistent_disk, {})
         end
       end
 
       it 'sets disk metadata with deployment information' do
         allow(cloud_factory).to receive(:for_availability_zone).and_return(cloud)
         allow(cloud).to receive(:attach_disk)
-        expect_any_instance_of(Bosh::Director::MetadataUpdater).to receive(:update_disk_metadata).with(persistent_disk, persistent_disk.instance.deployment.tags)
-        disk_manager.attach_disk(persistent_disk)
+        expect_any_instance_of(Bosh::Director::MetadataUpdater).to receive(:update_disk_metadata).with(persistent_disk, {'mytag' => 'myvalue'})
+        disk_manager.attach_disk(persistent_disk, {'mytag' => 'myvalue'})
       end
     end
 
@@ -500,14 +498,11 @@ module Bosh::Director
 
     describe '#attach_disks_if_needed' do
       context 'when instance desired job has disk' do
-        before do
-          allow(cloud_factory).to receive(:for_availability_zone!)
-        end
-
         let(:job_persistent_disk_size) { 100 }
 
         it 'attaches current instance disk' do
           expect(cloud_collection).to receive(:attach_disk).with('vm234', 'disk123')
+          expect(cloud_collection).to receive(:set_disk_metadata).with('disk123', hash_including(tags))
           expect(cloud_factory).to receive(:for_availability_zone).with(instance_model.availability_zone).at_least(:once).and_return(cloud_collection)
           disk_manager.attach_disks_if_needed(instance_plan)
         end

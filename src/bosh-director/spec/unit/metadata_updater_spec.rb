@@ -109,7 +109,7 @@ describe Bosh::Director::MetadataUpdater do
   describe '#update_disk_metadata' do
     before do
       allow(Bosh::Director::CloudFactory).to receive(:new).and_return(cloud_factory)
-      expect(cloud_factory).to receive(:for_availability_zone!).with(instance.availability_zone).and_return(cloud)
+      expect(cloud_factory).to receive(:for_availability_zone).with(instance.availability_zone).and_return(cloud)
     end
 
     let(:disk) { BD::Models::PersistentDisk.make(instance_id: 'fake-vm-cid', disk_cid: 'fake-disk-cid')}

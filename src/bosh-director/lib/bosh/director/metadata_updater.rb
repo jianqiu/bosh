@@ -30,7 +30,7 @@ module Bosh::Director
     end
 
     def update_disk_metadata(disk, metadata)
-      cloud = cloud_factory.for_availability_zone!(disk.instance.availability_zone)
+      cloud = cloud_factory.for_availability_zone(disk.instance.availability_zone)
 
       if cloud.respond_to?(:set_disk_metadata)
         metadata = metadata.merge(@director_metadata)
