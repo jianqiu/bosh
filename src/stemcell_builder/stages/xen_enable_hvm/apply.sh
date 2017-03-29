@@ -12,7 +12,6 @@ update-grub -y
 
 cp -a $assets_dir/grub_conf_template $chroot/tmp
 run_in_chroot $chroot "
-kernel_version=`uname -r`
-sed -i \"s/#kernel_version#/${kernel_version}/g\" /tmp/grub_conf_template
+sed -i 's/#kernel_version#/'"$(eval uname -r)"'/g' /tmp/grub_conf_template
 mv /tmp/grub_conf_template /boot/grub/grub.conf
 "
