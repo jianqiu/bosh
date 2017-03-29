@@ -197,6 +197,7 @@ module Bosh::Stemcell
           :image_create,
           :image_install_grub,
           :bosh_audit_bluemix,
+          :xen_enable_hvm
       ]
     end
 

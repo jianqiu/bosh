@@ -1,0 +1,7 @@
+default=0
+timeout=1
+password --md5 *
+title Ubuntu 14.04.5 LTS (#kernel_version#)
+  root (hd0,0)
+  kernel /boot/vmlinuz-#kernel_version# ro root=/dev/xvda1 selinux=0 cgroup_enable=memory swapaccount=1 console=tty0 console=ttyS0,115200n8 earlyprintk=ttyS0 rootdelay=300 earlyprintk=ttyS0 rootdelay=300 audit=1
+  initrd /boot/initrd.img-#kernel_version#
